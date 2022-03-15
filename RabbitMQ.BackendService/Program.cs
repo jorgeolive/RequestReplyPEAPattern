@@ -1,6 +1,7 @@
 using MassTransit;
 using RabbitMQ.IntegrationMessages;
 using RequestReply.ApiGateway;
+using System.Threading.Channels;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +15,8 @@ builder.Services.AddMassTransit(x =>
         cfg.ConfigureEndpoints(context);
     });
 });
-builder.Services.AddSingleton<BusEventsCommunicationChannel<ReserveTicketResponse>>();
+
+builder.Services.AddSingleton<Channel<ReserveTicketResponse>>(Channel.CreateUnbounded<ReserveTicketResponse>());
 
 EndpointConvention.Map<ReserveTicketRequest>(
     new Uri("rabbitmq://localhost/ticket-reservation-requests"));

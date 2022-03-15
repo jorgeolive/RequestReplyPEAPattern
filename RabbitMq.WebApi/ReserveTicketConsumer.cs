@@ -11,14 +11,14 @@ namespace RequestReply.Payments
     {
         public ReserveTicketConsumer(ILogger<ReserveTicketConsumer> logger)
         {
-            Logger = logger;
+            _logger = logger;
         }
 
-        public ILogger<ReserveTicketConsumer> Logger { get; }
+        public ILogger<ReserveTicketConsumer> _logger { get; }
 
         public async Task Consume(ConsumeContext<ReserveTicketRequest> context)
         {
-            Logger.LogInformation($"Received message with Correlation Id {context.CorrelationId}");
+            _logger.LogInformation($"Received message with Correlation Id {context.CorrelationId}");
 
             await context.Send<ReserveTicketResponse>(new
             {

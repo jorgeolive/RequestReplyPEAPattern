@@ -3,26 +3,27 @@ using MassTransit;
 using MassTransit.ConsumeConfigurators;
 using MassTransit.Definition;
 using RabbitMQ.IntegrationMessages;
+using System.Threading.Channels;
 
 namespace RequestReply.ApiGateway
 {
     public class ReserveTicketConsumer :
         IConsumer<ReserveTicketResponse>
     {
-        private BusEventsCommunicationChannel<ReserveTicketResponse> _commChannel;
+        private ILogger<ReserveTicketConsumer> _logger;
+        private Channel<ReserveTicketResponse> _commChannel;
         public ReserveTicketConsumer(
             ILogger<ReserveTicketConsumer> logger,
-            BusEventsCommunicationChannel<ReserveTicketResponse> commChannel)
+            Channel<ReserveTicketResponse> commChannel)
         {
-            Logger = logger;
+            _logger = logger;
             _commChannel = commChannel;
         }
 
-        public ILogger<ReserveTicketConsumer> Logger { get; }
 
         public async Task Consume(ConsumeContext<ReserveTicketResponse> context)
         {
-            await _commChannel.PushEvent(context.Message);
+            await _commChannel.Writer.WriteAsync(context.Message);
         }
     }
 
@@ -33,9 +34,6 @@ namespace RequestReply.ApiGateway
         {
             // override the default endpoint name, for whatever reason
             EndpointName = "ticket-reservation-responses";
-
-            // limit the number of messages consumed concurrently
-            // this applies to the consumer only, not the endpoint
             ConcurrentMessageLimit = 4;
         }
 
