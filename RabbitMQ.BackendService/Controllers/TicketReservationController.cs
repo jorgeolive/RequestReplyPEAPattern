@@ -1,7 +1,6 @@
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.IntegrationMessages;
-using RequestReply.ApiGateway;
 using System.Threading.Channels;
 
 namespace RabbitMQ.BackendService.Controllers
@@ -10,33 +9,43 @@ namespace RabbitMQ.BackendService.Controllers
     [Route("[controller]")]
     public class TicketReservationController : ControllerBase
     {
-        private ISendEndpointProvider _sendEndpoint { get; }
+        private ISendEndpointProvider _eventBus { get; }
         private Channel<ReserveTicketResponse> _channel { get; }
         private readonly ILogger<TicketReservationController> _logger;
 
         public TicketReservationController(
-            ISendEndpointProvider sendEndpoint,
-            Channel<ReserveTicketResponse> channels)
+            ISendEndpointProvider eventBus,
+            Channel<ReserveTicketResponse> channels, ILogger<TicketReservationController> logger)
         {
-            _sendEndpoint = sendEndpoint;
+            _eventBus = eventBus;
             _channel = channels;
+            _logger = logger;
         }
 
         [HttpPost(Name = "reserve-ticket")]
         public async Task<IActionResult> ReserveFor(Guid showId, Guid customerId, Guid requestId)
-        {            
-            ReserveTicketResponse reserveTicketResponse = default;
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
 
-            await _sendEndpoint.Send<ReserveTicketRequest>(
+            ReserveTicketResponse? reserveTicketResponse = default;
+
+            await _eventBus.Send<ReserveTicketRequest>(
                 new { RequestId = requestId, CustomerId = customerId, ShowId = showId });
 
-            await foreach(var result in _channel.Reader.ReadAllAsync())
+            try
             {
-                if(result.RequestId == requestId)
+                await foreach(var result in _channel.Reader.ReadAllAsync(cts.Token))
                 {
-                    reserveTicketResponse = result;
-                    break;
+                    if(result.RequestId == requestId)
+                    {
+                        reserveTicketResponse = result;
+                        break;
+                    }
                 }
+            } 
+            catch(OperationCanceledException)
+            {
+                return new UnprocessableEntityResult();
             }
 
             return Ok(reserveTicketResponse);

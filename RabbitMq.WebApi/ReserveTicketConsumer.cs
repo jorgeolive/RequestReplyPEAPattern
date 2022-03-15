@@ -20,6 +20,8 @@ namespace RequestReply.Payments
         {
             _logger.LogInformation($"Received message with Correlation Id {context.CorrelationId}");
 
+            await Task.Delay(Random.Shared.Next(1000, 5000));
+
             await context.Send<ReserveTicketResponse>(new
             {
                 CustomerId = context.Message.CustomerId,
